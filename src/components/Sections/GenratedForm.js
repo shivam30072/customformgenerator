@@ -27,9 +27,18 @@ const GenratedForm = ({
     let newErrors = {};
 
     formJson.forEach((item) => {
-      if (item.required && !formData[item.label]) {
-        isValid = false;
-        newErrors[item.label] = `${item.label} is required`;
+      const value = formData[item.label];
+
+      if (item.required) {
+        if (item.type === "checkbox") {
+          if (!value || value.length === 0) {
+            isValid = false;
+            newErrors[item.label] = `${item.label} is required`;
+          }
+        } else if (!value || value === "") {
+          isValid = false;
+          newErrors[item.label] = `${item.label} is required`;
+        }
       }
     });
 
@@ -37,14 +46,14 @@ const GenratedForm = ({
     return isValid;
   };
 
-  const exportFormConfig = (json) => {
+  const exportFormConfig = (json, type) => {
     const dataStr = JSON.stringify(json, null, 2);
     const blob = new Blob([dataStr], { type: "application/json" });
     const url = URL.createObjectURL(blob);
 
     const a = document.createElement("a");
     a.href = url;
-    a.download = "form-config.json";
+    a.download = `form-${type}.json`;
     a.click();
 
     URL.revokeObjectURL(url);
@@ -55,7 +64,7 @@ const GenratedForm = ({
       return;
     }
 
-    exportFormConfig(formData);
+    exportFormConfig(formData, "data");
   };
 
   const handleRemoveField = (id, label) => {
@@ -158,18 +167,31 @@ const GenratedForm = ({
                       checked={formData[item?.label]?.includes(option) || false}
                       onChange={(e) => {
                         const newValue = formData[item.label] || [];
+                        let updatedValue;
+
                         if (e.target.checked) {
-                          setFormData({
-                            ...formData,
-                            [item?.label]: [...newValue, option],
-                          });
+                          updatedValue = [...newValue, option];
                         } else {
-                          setFormData({
-                            ...formData,
-                            [item.label]: newValue.filter(
-                              (val) => val !== option
-                            ),
-                          });
+                          updatedValue = newValue.filter(
+                            (val) => val !== option
+                          );
+                        }
+
+                        setFormData({
+                          ...formData,
+                          [item.label]: updatedValue,
+                        });
+
+                        if (updatedValue.length > 0) {
+                          setErrors((prevErrors) => ({
+                            ...prevErrors,
+                            [item.label]: "",
+                          }));
+                        } else {
+                          setErrors((prevErrors) => ({
+                            ...prevErrors,
+                            [item.label]: `${item.label} is required`,
+                          }));
                         }
                       }}
                     />
@@ -239,7 +261,7 @@ const GenratedForm = ({
             <button
               className="export-btn"
               onClick={() => {
-                exportFormConfig(formJson);
+                exportFormConfig(formJson, "config");
               }}
             >
               Export Form Config
